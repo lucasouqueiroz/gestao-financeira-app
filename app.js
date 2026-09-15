@@ -1,23 +1,19 @@
 import { supabase } from './src/lib/supabaseClient.js'
 
 const $ = (selector) => document.querySelector(selector)
+const MAGIC_EMAIL = 'lucasouqueiroz@gmail.com'
+const APP_URL = 'https://lucasouqueiroz.github.io/gestao-financeira-app/'
 
 const authContainer = $('#auth-container')
 const appContainer = $('#app')
 const authForm = $('#auth-form')
-const authEmail = $('#auth-email')
-const authPassword = $('#auth-password')
-const authName = $('#auth-nome')
-const authNameField = $('#auth-nome-field')
 const authStatus = $('#auth-status')
 const authSubmit = $('#auth-submit')
-const authToggle = $('#auth-toggle')
 const mainContent = $('#main-content')
 const modalOverlay = $('#modal-overlay')
 const modalForm = $('#modal-form')
 const modalTitle = $('#modal-title')
 
-let mode = 'login'
 let currentUser = null
 
 function setStatus(message = '', isError = false) {
@@ -27,18 +23,6 @@ function setStatus(message = '', isError = false) {
 
 function setEnabled(enabled) {
   authSubmit.disabled = !enabled
-  authToggle.disabled = !enabled
-}
-
-function setMode(nextMode) {
-  mode = nextMode
-  const register = mode === 'register'
-  authNameField.classList.toggle('hidden', !register)
-  authName.required = register
-  authPassword.autocomplete = register ? 'new-password' : 'current-password'
-  authSubmit.textContent = register ? 'Criar conta' : 'Entrar'
-  authToggle.textContent = register ? 'Já tem conta? Entrar' : 'Não tem conta? Cadastre-se'
-  setStatus(register ? 'Use uma senha com pelo menos 8 caracteres.' : '')
 }
 
 function showAuth() {
@@ -65,7 +49,7 @@ async function renderDashboard() {
     .order('vencimento', { ascending: false })
 
   if (error) {
-    mainContent.innerHTML = `<div class="card"><h1 class="page-title">Não foi possível carregar os dados</h1><p>${error.message}</p></div>`
+    mainContent.innerHTML = `<div class="card"><h1 class="page-title">Não foi possível carregar os dados</h1><p>${escape(error.message)}</p></div>`
     return
   }
 
@@ -106,35 +90,23 @@ function escape(value = '') {
 
 async function submitAuth(event) {
   event.preventDefault()
-  const email = authEmail.value.trim()
-  const password = authPassword.value
-  const nome = authName.value.trim()
-
-  if (!email || !password || (mode === 'register' && !nome)) return
 
   setEnabled(false)
-  setStatus(mode === 'login' ? 'Entrando…' : 'Criando conta…')
+  setStatus('Enviando seu link de acesso…')
+
   try {
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { nome },
-          emailRedirectTo: 'https://lucasouqueiroz.github.io/gestao-financeira-app/'
-        }
-      })
-      if (error) throw error
-      if (!data.session) {
-        setMode('login')
-        setStatus('Conta criada. Confirme o seu e-mail e depois entre.')
+    const { error } = await supabase.auth.signInWithOtp({
+      email: MAGIC_EMAIL,
+      options: {
+        emailRedirectTo: APP_URL,
+        shouldCreateUser: true
       }
-    }
+    })
+
+    if (error) throw error
+    setStatus('Link enviado. Abra seu e-mail e clique no link para entrar.')
   } catch (error) {
-    setStatus(error.message || 'Não foi possível concluir a autenticação.', true)
+    setStatus(error.message || 'Não foi possível enviar o link de acesso.', true)
   } finally {
     setEnabled(true)
   }
@@ -174,7 +146,6 @@ async function saveTransaction(event) {
 
 async function start() {
   authForm.addEventListener('submit', submitAuth)
-  authToggle.addEventListener('click', () => setMode(mode === 'login' ? 'register' : 'login'))
   $('#btn-logout').addEventListener('click', () => supabase.auth.signOut())
   $('#nav-dashboard').addEventListener('click', renderDashboard)
   $('#nav-transacoes').addEventListener('click', renderDashboard)
@@ -186,7 +157,10 @@ async function start() {
   const { data: { session } } = await supabase.auth.getSession()
   currentUser = session?.user || null
   if (currentUser) showApp()
-  else { showAuth(); setStatus('') }
+  else {
+    showAuth()
+    setStatus('Use o botão para receber seu link de acesso por e-mail.')
+  }
 
   supabase.auth.onAuthStateChange((_event, session) => {
     currentUser = session?.user || null
