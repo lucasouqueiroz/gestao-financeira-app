@@ -1,1 +1,48 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gestão Financeira</title><link rel="stylesheet" href="styles.css"></head><body><div id="app"></div><script type="module" src="app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestao Financeira</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-animated">
+  <div id="auth-container" class="auth-container hidden">
+    <div class="auth-card animate-scale-in">
+      <div class="auth-header">
+        <div class="auth-logo">GF</div>
+        <h1 class="auth-title">Gestao Financeira</h1>
+        <p class="auth-subtitle">Controle suas financas de forma simples</p>
+      </div>
+      <form id="auth-form">
+        <div class="form-group"><label class="form-label">Email</label><input type="email" id="auth-email" class="form-input" required placeholder="seu@email.com"></div>
+        <div class="form-group"><label class="form-label">Senha</label><input type="password" id="auth-password" class="form-input" required placeholder="••••••••"></div>
+        <div id="auth-nome-field" class="form-group hidden"><label class="form-label">Nome</label><input type="text" id="auth-nome" class="form-input" placeholder="Seu nome"></div>
+        <button type="submit" id="auth-submit" class="btn btn-primary" style="width:100%;margin-top:var(--space-4)">Entrar</button>
+      </form>
+      <div class="auth-divider">ou</div>
+      <button id="auth-toggle" class="btn btn-ghost" style="width:100%">Nao tem conta? Cadastre-se</button>
+    </div>
+  </div>
+  <div id="app" class="app-container hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header"><div class="logo-icon">GF</div><span class="logo-text">Gestao Financeira</span></div>
+      <nav class="nav-menu">
+        <a id="nav-dashboard" class="nav-item active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+        <a id="nav-transacoes" class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Transacoes</a>
+        <a id="nav-novo" class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Novo Lancamento</a>
+      </nav>
+      <div style="margin-top:auto;padding-top:var(--space-6);border-top:1px solid var(--gray-200)"><button id="btn-logout" class="btn btn-ghost" style="width:100%;justify-content:flex-start;gap:var(--space-3);color:var(--danger)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sair</button></div>
+    </aside>
+    <main id="main-content" class="main-content"></main>
+  </div>
+  <div id="modal-overlay" class="modal-overlay">
+    <div id="modal" class="modal"><div class="modal-header"><h2 id="modal-title" class="modal-title">Novo Lancamento</h2><button id="modal-close" class="modal-close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><form id="modal-form"></form></div>
+  </div>
+  <div id="toast-container" class="toast-container"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
