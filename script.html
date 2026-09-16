@@ -1,0 +1,313 @@
+<script>
+  let dadosBalanco = [];
+  let dadosDespesas = [];
+  let dadosGanhos = [];
+
+  window.onload = function() {
+    carregarBalancoMensal();
+  };
+
+  function carregarBalancoMensal() {
+    document.getElementById('tabelaBalancoMensal').innerText = 'Carregando...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        dadosBalanco = res || [];
+        renderizarTabelaBalancoMensal();
+        preencherFiltroPeriodo();
+      })
+      .withFailureHandler(erroGenerico)
+      .getBalancoMensal();
+  }
+
+  function preencherFiltroPeriodo() {
+    const select = document.getElementById('filtroPeriodo');
+    const periodosValidos = new Set();
+
+    dadosBalanco.forEach(linha => {
+      const ganhos = parseFloat(String(linha.total_ganhos).replace('R$', '').replace(',', '.') || 0);
+      const despesas = parseFloat(String(linha.total_despesas).replace('R$', '').replace(',', '.') || 0);
+      const balanco = parseFloat(String(linha.balanco).replace('R$', '').replace(',', '.') || 0);
+
+      const temMovimento = ganhos !== 0 || despesas !== 0 || balanco !== 0;
+
+      if (linha.periodo && temMovimento) {
+        periodosValidos.add(String(linha.periodo));
+      }
+    });
+
+    select.innerHTML = '<option value="">Todos</option>';
+    const ordenados = Array.from(periodosValidos).sort();
+
+    ordenados.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      select.appendChild(opt);
+    });
+
+    if (ordenados.length > 0) {
+      const ultimo = ordenados[ordenados.length - 1];
+      if (!select.value) {
+        select.value = ultimo;
+      }
+      document.getElementById('despPeriodo').value = ultimo;
+      document.getElementById('ganhoPeriodo').value = ultimo;
+      atualizarDadosPorPeriodo();
+    }
+  }
+
+  function atualizarDadosPorPeriodo() {
+    const periodo = document.getElementById('filtroPeriodo').value || '';
+    renderizarResumoSelecionado(periodo);
+    carregarDespesas(periodo);
+    carregarGanhos(periodo);
+  }
+
+  function carregarDespesas(periodo) {
+    document.getElementById('tabelaDespesas').innerText = 'Carregando...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        dadosDespesas = res || [];
+        renderizarTabelaDespesas();
+      })
+      .withFailureHandler(erroGenerico)
+      .getDespesas(periodo);
+  }
+
+  function carregarGanhos(periodo) {
+    document.getElementById('tabelaGanhos').innerText = 'Carregando...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        dadosGanhos = res || [];
+        renderizarTabelaGanhos();
+      })
+      .withFailureHandler(erroGenerico)
+      .getGanhos(periodo);
+  }
+
+  function formatCurrency(valor) {
+    const num = parseFloat(valor);
+    if (isNaN(num)) return valor;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(num);
+  }
+
+  function renderizarResumoSelecionado(periodo) {
+    const div = document.getElementById('resumoSelecionado');
+
+    if (!periodo) {
+      div.innerText = 'Selecione um período para ver o resumo.';
+      return;
+    }
+
+    const linha = dadosBalanco.find(l => String(l.periodo) === String(periodo));
+    if (!linha) {
+      div.innerText = 'Período não encontrado em balanco_mensal.';
+      return;
+    }
+
+    const ganhosNum = parseFloat(String(linha.total_ganhos).replace('R$', '').replace(',', '.') || 0);
+    const despesasNum = parseFloat(String(linha.total_despesas).replace('R$', '').replace(',', '.') || 0);
+    const balancoValor = parseFloat(String(linha.balanco).replace('R$', '').replace(',', '.') || 0);
+
+    const ganhosBRL = formatCurrency(ganhosNum);
+    const despesasBRL = formatCurrency(despesasNum);
+    const balancoBRL = formatCurrency(balancoValor);
+
+    const balancoClasse = balancoValor < 0 ? 'balanco-negativo' : 'balanco-positivo';
+    const emojiBalanco = balancoValor < 0 ? '📉' : '📈';
+    const emojiGanhos = ganhosNum > 0 ? '💰' : '💤';
+    const emojiDespesas = despesasNum > 0 ? '🧾' : '💤';
+
+    div.innerHTML =
+      '<p><strong>Resumo de ' + linha.mes_nome + ' ' + linha.ano + '</strong></p>' +
+      '<p>' + emojiGanhos + ' Ganhos: <strong>' + ganhosBRL + '</strong></p>' +
+      '<p>' + emojiDespesas + ' Despesas: <strong>' + despesasBRL + '</strong></p>' +
+      '<p>' + emojiBalanco + ' Balanço: <span class="' + balancoClasse + '">' + balancoBRL + '</span></p>';
+  }
+
+  function renderizarTabelaBalancoMensal() {
+    if (!dadosBalanco || dadosBalanco.length === 0) {
+      document.getElementById('tabelaBalancoMensal').innerText = 'Nenhum período encontrado.';
+      return;
+    }
+
+    let html = '<table><thead><tr>' +
+      '<th>ID Período</th><th>Ano</th><th>Mês</th><th>Período</th>' +
+      '<th>Ganhos</th><th>Despesas</th><th>Balanço</th>' +
+      '</tr></thead><tbody>';
+
+    dadosBalanco.forEach(linha => {
+      html += '<tr>' +
+        '<td>' + linha.id_periodo + '</td>' +
+        '<td>' + linha.ano + '</td>' +
+        '<td>' + linha.mes_nome + '</td>' +
+        '<td>' + linha.periodo + '</td>' +
+        '<td>' + linha.total_ganhos + '</td>' +
+        '<td>' + linha.total_despesas + '</td>' +
+        '<td>' + linha.balanco + '</td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tabelaBalancoMensal').innerHTML = html;
+  }
+
+  function renderizarTabelaDespesas() {
+    if (!dadosDespesas || dadosDespesas.length === 0) {
+      document.getElementById('tabelaDespesas').innerText = 'Nenhuma despesa para este período.';
+      return;
+    }
+
+    let html = '<table><thead><tr>' +
+      '<th>ID</th><th>Data</th><th>Descrição</th><th>Categoria</th>' +
+      '<th>Valor</th><th>Pago</th><th>Status</th><th>Ações</th>' +
+      '</tr></thead><tbody>';
+
+    dadosDespesas.forEach(d => {
+      const pagoLabel = d.pago ? 'Sim' : 'Não';
+      const pagoClass = d.pago ? 'badge badge-pago' : 'badge badge-pendente';
+
+      html += '<tr>' +
+        '<td>' + d.id + '</td>' +
+        '<td>' + d.data_vencimento + '</td>' +
+        '<td>' + d.descricao + '</td>' +
+        '<td>' + d.categoria + '</td>' +
+        '<td>' + formatCurrency(d.valor) + '</td>' +
+        '<td><span class="' + pagoClass + '">' + pagoLabel + '</span></td>' +
+        '<td>' + d.status + '</td>' +
+        '<td><button class="btn-danger" onclick="apagarDespesa(' + d.id + ')">Apagar</button></td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tabelaDespesas').innerHTML = html;
+  }
+
+  function renderizarTabelaGanhos() {
+    if (!dadosGanhos || dadosGanhos.length === 0) {
+      document.getElementById('tabelaGanhos').innerText = 'Nenhum ganho para este período.';
+      return;
+    }
+
+    let html = '<table><thead><tr>' +
+      '<th>ID</th><th>Data</th><th>Descrição</th><th>Categoria</th>' +
+      '<th>Valor</th><th>Recebido</th><th>Status</th><th>Ações</th>' +
+      '</tr></thead><tbody>';
+
+    dadosGanhos.forEach(g => {
+      const recebidoLabel = g.pago ? 'Sim' : 'Não';
+      const recebidoClass = g.pago ? 'badge badge-pago' : 'badge badge-pendente';
+
+      html += '<tr>' +
+        '<td>' + g.id + '</td>' +
+        '<td>' + g.data_recebimento + '</td>' +
+        '<td>' + g.descricao + '</td>' +
+        '<td>' + g.categoria + '</td>' +
+        '<td>' + formatCurrency(g.valor) + '</td>' +
+        '<td><span class="' + recebidoClass + '">' + recebidoLabel + '</span></td>' +
+        '<td>' + g.status + '</td>' +
+        '<td><button class="btn-danger" onclick="apagarGanho(' + g.id + ')">Apagar</button></td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('tabelaGanhos').innerHTML = html;
+  }
+
+  function enviarDespesa(event) {
+    event.preventDefault();
+
+    const lancamento = {
+      periodo: document.getElementById('despPeriodo').value,
+      data_vencimento: document.getElementById('despData').value,
+      descricao: document.getElementById('despDescricao').value,
+      categoria: document.getElementById('despCategoria').value,
+      valor: parseFloat(document.getElementById('despValor').value),
+      pago: document.getElementById('despPago').value === 'true',
+      status: document.getElementById('despStatus').value || 'PAGO'
+    };
+
+    const msg = document.getElementById('mensagemDespesa');
+    msg.innerText = 'Salvando despesa...';
+
+    google.script.run
+      .withSuccessHandler(function() {
+        msg.innerText = 'Despesa salva com sucesso.';
+        atualizarDadosPorPeriodo();
+      })
+      .withFailureHandler(function(err) {
+        msg.innerText = 'Erro ao salvar despesa: ' + err.message;
+      })
+      .addDespesa(lancamento);
+  }
+
+  function enviarGanho(event) {
+    event.preventDefault();
+
+    const lancamento = {
+      periodo: document.getElementById('ganhoPeriodo').value,
+      data_recebimento: document.getElementById('ganhoData').value,
+      descricao: document.getElementById('ganhoDescricao').value,
+      categoria: document.getElementById('ganhoCategoria').value,
+      valor: parseFloat(document.getElementById('ganhoValor').value),
+      pago: document.getElementById('ganhoPago').value === 'true',
+      status: document.getElementById('ganhoStatus').value || 'PAGO'
+    };
+
+    const msg = document.getElementById('mensagemGanho');
+    msg.innerText = 'Salvando ganho...';
+
+    google.script.run
+      .withSuccessHandler(function() {
+        msg.innerText = 'Ganho salvo com sucesso.';
+        atualizarDadosPorPeriodo();
+      })
+      .withFailureHandler(function(err) {
+        msg.innerText = 'Erro ao salvar ganho: ' + err.message;
+      })
+      .addGanho(lancamento);
+  }
+
+  function apagarDespesa(id) {
+    if (!confirm('Confirma apagar a despesa ID ' + id + '?')) return;
+
+    google.script.run
+      .withSuccessHandler(function(ok) {
+        if (ok) {
+          alert('Despesa apagada.');
+          atualizarDadosPorPeriodo();
+        } else {
+          alert('Despesa não encontrada.');
+        }
+      })
+      .withFailureHandler(erroGenerico)
+      .deleteDespesa(id);
+  }
+
+  function apagarGanho(id) {
+    if (!confirm('Confirma apagar o ganho ID ' + id + '?')) return;
+
+    google.script.run
+      .withSuccessHandler(function(ok) {
+        if (ok) {
+          alert('Ganho apagado.');
+          atualizarDadosPorPeriodo();
+        } else {
+          alert('Ganho não encontrado.');
+        }
+      })
+      .withFailureHandler(erroGenerico)
+      .deleteGanho(id);
+  }
+
+  function erroGenerico(err) {
+    console.error(err);
+    alert('Erro: ' + err.message);
+  }
+</script>
